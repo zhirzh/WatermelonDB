@@ -92,7 +92,7 @@ describe('finding records', () => {
     const { tasks: collection, adapter } = mockDatabase()
 
     adapter.unsafeSqlQuery = (table, sql, cb) => cb({ value: [{ id: 'm1' }] })
-    adapter.query = jest.fn().mockImplementation((query, cb) => cb({ value: ['m1', { id: 'm2' }] }))
+    adapter.cachedQuery = jest.fn().mockImplementation((query, cb) => cb({ value: ['m1', { id: 'm2' }] }))
 
     const unsafeFetch = collection.unsafeFetchRecordsWithSQL(
       `SELECT t.* FROM mock_tasks AS t WHERE t.id = 'm1'`,
@@ -108,7 +108,7 @@ describe('fetching queries', () => {
   it('fetches queries and caches records', async () => {
     const { tasks: collection, adapter } = mockDatabase()
 
-    adapter.query = jest
+    adapter.cachedQuery = jest
       .fn()
       .mockImplementation((query, cb) => cb({ value: [{ id: 'm1' }, { id: 'm2' }] }))
 
@@ -129,13 +129,13 @@ describe('fetching queries', () => {
     expect(collection._cache.map.get('m2')).toBe(models[1])
 
     // check if query was passed correctly
-    expect(adapter.query.mock.calls.length).toBe(1)
-    expect(adapter.query.mock.calls[0][0]).toEqual(query.serialize())
+    expect(adapter.cachedQuery.mock.calls.length).toBe(1)
+    expect(adapter.cachedQuery.mock.calls[0][0]).toEqual(query.serialize())
   })
   it('fetches query records from cache if possible', async () => {
     const { tasks: collection, adapter } = mockDatabase()
 
-    adapter.query = jest.fn().mockImplementation((query, cb) => cb({ value: ['m1', { id: 'm2' }] }))
+    adapter.cachedQuery = jest.fn().mockImplementation((query, cb) => cb({ value: ['m1', { id: 'm2' }] }))
 
     const m1 = new MockTask(collection, { id: 'm1' })
     collection._cache.add(m1)
@@ -152,7 +152,7 @@ describe('fetching queries', () => {
   it('fetches query records from cache even if full raw object was sent', async () => {
     const { tasks: collection, adapter } = mockDatabase()
 
-    adapter.query = jest
+    adapter.cachedQuery = jest
       .fn()
       .mockImplementation((query, cb) => cb({ value: [{ id: 'm1' }, { id: 'm2' }] }))
 

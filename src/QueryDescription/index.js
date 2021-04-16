@@ -1,6 +1,7 @@
 // @flow
 /* eslint-disable no-use-before-define */
 
+import { flatten, pluck, uniq } from 'rambdax'
 import { unique, values as getValues, groupBy, unnest, pipe } from '../utils/fp'
 
 // don't import whole `utils` to keep worker size small
@@ -44,6 +45,11 @@ export type WhereDescription = $RE<{
   comparison: Comparison,
 }>
 
+export type Select = $RE<{
+  type: 'select',
+  columns: ColumnName[],
+}>
+
 export type SqlExpr = $RE<{ type: 'sql', expr: string }>
 export type LokiExpr = $RE<{ type: 'loki', expr: any }>
 
@@ -85,10 +91,11 @@ export type LokiTransform = $RE<{
   type: 'lokiTransform',
   function: LokiTransformFunction,
 }>
-export type Clause = Where | SortBy | Take | Skip | JoinTables | NestedJoinTable | LokiTransform
+export type Clause = Select | Where | SortBy | Take | Skip | JoinTables | NestedJoinTable | LokiTransform
 
 type NestedJoinTableDef = $RE<{ from: TableName<any>, to: TableName<any> }>
 export type QueryDescription = $RE<{
+  select: Select[],
   where: Where[],
   joinTables: TableName<any>[],
   nestedJoinTables: NestedJoinTableDef[],
@@ -252,6 +259,15 @@ function _valueOrComparison(arg: Value | Comparison): Comparison {
   return { operator, right }
 }
 
+// Do not use this directly. Select columns using `experimentalObserveColumns` only.
+export function experimentalSelect(columns: ColumnName[]): Select {
+  const _columns = columns.slice()
+  if (!_columns.includes('id')) {
+    _columns.unshift(columnName('id'))
+  }
+  return { type: 'select', columns: _columns }
+}
+
 export function where(left: ColumnName, valueOrComparison: Value | Comparison): WhereDescription {
   return { type: 'where', left: checkName(left), comparison: _valueOrComparison(valueOrComparison) }
 }
@@ -399,10 +415,13 @@ const compressTopLevelOns = (conditions: Where[]): Where[] => {
 
 const syncStatusColumn = columnName('_status')
 const extractClauses: (Clause[]) => QueryDescription = clauses => {
-  const clauseMap = { where: [], joinTables: [], nestedJoinTables: [], sortBy: [] }
+  const clauseMap = { select: [], where: [], joinTables: [], nestedJoinTables: [], sortBy: [] }
   clauses.forEach(clause => {
     const { type } = clause
     switch (type) {
+      case 'select':
+        clauseMap.select.push(clause)
+        break
       case 'where':
       case 'and':
       case 'or':
@@ -536,4 +555,12 @@ export function hasColumnComparisons(conditions: Where[]): boolean {
     'Broken Object prototype! You must not have properties defined on Object prototype',
   )
   return searchForColumnComparisons(conditions)
+}
+
+export function getSelectedColumns(query: QueryDescription): ColumnName[] {
+  return (pipe(
+    pluck('columns'),
+    flatten,
+    uniq
+  ): any)(query.select)
 }

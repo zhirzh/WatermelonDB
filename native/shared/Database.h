@@ -19,6 +19,8 @@ class Database : public jsi::HostObject {
 
     jsi::Value find(jsi::String &tableName, jsi::String &id);
     jsi::Value query(jsi::String &tableName, jsi::String &sql, jsi::Array &arguments);
+    jsi::Value cachedQuery(jsi::String &tableName, jsi::String &sql, jsi::Array &arguments);
+    jsi::Value query(jsi::String &tableName, jsi::String &sql, jsi::Array &arguments, bool willCache);
     jsi::Value count(jsi::String &sql, jsi::Array &arguments);
     void batch(jsi::Array &operations);
     jsi::Array getDeletedRecords(jsi::String &tableName);

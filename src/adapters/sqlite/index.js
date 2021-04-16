@@ -227,16 +227,23 @@ export default class SQLiteAdapter implements DatabaseAdapter, SQLDatabaseAdapte
 
   query(query: SerializedQuery, callback: ResultCallback<CachedQueryResult>): void {
     validateTable(query.table, this.schema)
-    this.unsafeSqlQuery(query.table, encodeQuery(query), callback)
+    this.unsafeSqlQuery(query.table, encodeQuery(query), false, callback)
+  }
+
+  cachedQuery(query: SerializedQuery, callback: ResultCallback<CachedQueryResult>): void {
+    validateTable(query.table, this.schema)
+    this.unsafeSqlQuery(query.table, encodeQuery(query), true, callback)
   }
 
   unsafeSqlQuery(
     table: TableName<any>,
     sql: string,
+    willCache: boolean,
     callback: ResultCallback<CachedQueryResult>,
   ): void {
     validateTable(table, this.schema)
-    this._dispatcher.query(table, sql, result =>
+    const dispatch = willCache ? this._dispatcher.cachedQuery : this._dispatcher.query
+    dispatch(table, sql, result =>
       callback(
         mapValue(rawRecords => sanitizeQueryResult(rawRecords, this.schema.tables[table]), result),
       ),

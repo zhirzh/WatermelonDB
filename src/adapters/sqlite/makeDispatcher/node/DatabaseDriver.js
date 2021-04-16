@@ -107,19 +107,23 @@ class DatabaseDriver {
     return results[0]
   }
 
-  cachedQuery: ((table: string, query: string) => Array<any>) = (table: string, query: string): any[] => {
+  query: ((table: string, query: string) => Array<any>) = (table: string, query: string) => this._query(table, query, false)
+
+  cachedQuery: ((table: string, query: string) => Array<any>) = (table: string, query: string) => this._query(table, query, true)
+
+  _query: ((table: string, query: string, willCache: boolean) => Array<any>) = (table: string, query: string, willCache: boolean): any[] => {
     const results = this.database.queryRaw(query)
     return results.map((row: any) => {
       const id = `${row.id}`
       if (this.isCached(table, id)) {
         return id
       }
-      this.markAsCached(table, id)
+      if (willCache) {
+        this.markAsCached(table, id)
+      }
       return row
     })
   }
-
-  query: ((table: string, query: string) => Array<any>) = (table: string, query: string) => this.cachedQuery(table, query)
 
   count: ((query: string) => number) = (query: string) => this.database.count(query)
 

@@ -4,6 +4,7 @@ describe('buildQueryDescription', () => {
   it('builds empty query', () => {
     const query = Q.buildQueryDescription([])
     expect(query).toEqual({
+      select: [],
       where: [],
       joinTables: [],
       nestedJoinTables: [],
@@ -13,6 +14,7 @@ describe('buildQueryDescription', () => {
   it('builds simple query', () => {
     const query = Q.buildQueryDescription([Q.where('left_column', 'right_value')])
     expect(query).toEqual({
+      select: [],
       where: [
         {
           type: 'where',
@@ -34,6 +36,7 @@ describe('buildQueryDescription', () => {
       Q.where('col5', null),
     ])
     expect(query).toEqual({
+      select: [],
       where: [
         { type: 'where', left: 'col1', comparison: { operator: 'eq', right: { value: 'val1' } } },
         { type: 'where', left: 'col2', comparison: { operator: 'eq', right: { value: 2 } } },
@@ -62,6 +65,7 @@ describe('buildQueryDescription', () => {
       Q.where('col11', Q.notLike('def%')),
     ])
     expect(query).toEqual({
+      select: [],
       where: [
         { type: 'where', left: 'col1', comparison: { operator: 'eq', right: { value: 'val1' } } },
         { type: 'where', left: 'col2', comparison: { operator: 'gt', right: { value: 2 } } },
@@ -108,6 +112,7 @@ describe('buildQueryDescription', () => {
   it('supports column comparisons', () => {
     const query = Q.buildQueryDescription([Q.where('left_column', Q.gte(Q.column('right_column')))])
     expect(query).toEqual({
+      select: [],
       where: [
         {
           type: 'where',
@@ -133,6 +138,7 @@ describe('buildQueryDescription', () => {
       ),
     ])
     expect(query).toEqual({
+      select: [],
       where: [
         { type: 'where', left: 'col1', comparison: { operator: 'eq', right: { value: 'value' } } },
         {
@@ -171,6 +177,7 @@ describe('buildQueryDescription', () => {
       Q.or(Q.unsafeLokiExpr({ column: { $jgt: 5 } })),
     ])
     expect(query).toEqual({
+      select: [],
       where: [
         { type: 'sql', expr: `some sql` },
         { type: 'loki', expr: { column: { $jgt: 5 } } },
@@ -187,6 +194,7 @@ describe('buildQueryDescription', () => {
     const filterClause = Q.unsafeLokiFilter(filter)
     const query = Q.buildQueryDescription([filterClause])
     expect(query).toEqual({
+      select: [],
       where: [],
       joinTables: [],
       nestedJoinTables: [],
@@ -198,6 +206,7 @@ describe('buildQueryDescription', () => {
     const transform = (records, _loki) => records
     const query = Q.buildQueryDescription([Q.unsafeLokiTransform(transform)])
     expect(query).toEqual({
+      select: [],
       where: [],
       joinTables: [],
       nestedJoinTables: [],
@@ -212,6 +221,7 @@ describe('buildQueryDescription', () => {
       Q.on('foreign_table2', 'foreign_column2', Q.gt(Q.column('foreign_column3'))),
     ])
     expect(query).toEqual({
+      select: [],
       where: [
         {
           type: 'on',
@@ -256,6 +266,7 @@ describe('buildQueryDescription', () => {
       ),
     ])
     expect(query).toEqual({
+      select: [],
       where: [
         {
           type: 'or',
@@ -308,6 +319,7 @@ describe('buildQueryDescription', () => {
       ]),
     ])
     expect(query).toEqual({
+      select: [],
       where: [
         {
           type: 'on',
@@ -344,6 +356,7 @@ describe('buildQueryDescription', () => {
       Q.on('projects', Q.on('teams', Q.on('organizations', 'foo', 'bar'))),
     ])
     expect(query).toEqual({
+      select: [],
       where: [
         {
           type: 'on',
@@ -401,6 +414,7 @@ describe('buildQueryDescription', () => {
   it('supports sorting query', () => {
     const query = Q.buildQueryDescription([Q.experimentalSortBy('sortable_column', Q.desc)])
     expect(query).toEqual({
+      select: [],
       where: [],
       joinTables: [],
       nestedJoinTables: [],
@@ -420,6 +434,7 @@ describe('buildQueryDescription', () => {
       Q.experimentalSkip(800),
     ])
     expect(query).toEqual({
+      select: [],
       where: [],
       joinTables: [],
       nestedJoinTables: [],
@@ -643,5 +658,69 @@ describe('queryWithoutDeleted', () => {
         whereNotDeleted,
       ]),
     )
+  })
+  it('supports selected columns in query', () => {
+    const query = Q.buildQueryDescription([Q.experimentalSelect(['col1', 'col2'])])
+    expect(query).toEqual({
+      select: [
+        {
+          type: 'select',
+          columns: ['id', 'col1', 'col2'],
+        },
+      ],
+      where: [],
+      joinTables: [],
+      nestedJoinTables: [],
+      sortBy: [],
+    })
+  })
+  it('supports multiple select queries', () => {
+    const query = Q.buildQueryDescription([
+      Q.experimentalSelect(['col1', 'col2']),
+      Q.experimentalSelect(['col2', 'col3']),
+    ])
+    expect(query).toEqual({
+      select: [
+        {
+          type: 'select',
+          columns: ['id', 'col1', 'col2'],
+        },
+        {
+          type: 'select',
+          columns: ['id', 'col2', 'col3'],
+        },
+      ],
+      where: [],
+      joinTables: [],
+      nestedJoinTables: [],
+      sortBy: [],
+    })
+  })
+  it('supports select with where conditions', () => {
+    const query = Q.buildQueryDescription([
+      Q.experimentalSelect(['col1', 'col2']),
+      Q.where('col', 'val'),
+    ])
+    expect(query).toEqual({
+      select: [
+        {
+          type: 'select',
+          columns: ['id', 'col1', 'col2'],
+        },
+      ],
+      where: [
+        {
+          type: 'where',
+          left: 'col',
+          comparison: {
+            operator: 'eq',
+            right: { value: 'val' },
+          },
+        },
+      ],
+      joinTables: [],
+      nestedJoinTables: [],
+      sortBy: [],
+    })
   })
 })

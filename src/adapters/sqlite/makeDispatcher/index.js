@@ -21,6 +21,7 @@ const dispatcherMethods = [
   'setUpWithMigrations',
   'find',
   'query',
+  'cachedQuery',
   'count',
   'batch',
   'batchJSON',

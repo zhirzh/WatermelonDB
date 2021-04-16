@@ -34,6 +34,11 @@ declare module '@nozbe/watermelondb/QueryDescription' {
     comparison: Comparison
   }
 
+  export interface Select {
+    type: 'select'
+    columns: ColumnName[]
+  }
+
   export type Where = WhereDescription | And | Or
   export interface And {
     type: 'and'
@@ -79,8 +84,9 @@ declare module '@nozbe/watermelondb/QueryDescription' {
     expr: string
   }
 
-  export type Clause = Where | On | SortBy | Take | Skip | Join | NestedJoin | Sql
+  export type Clause = Select | Where | On | SortBy | Take | Skip | Join | NestedJoin | Sql
   export interface QueryDescription {
+    select: Select[]
     where: Where[]
     join: On[]
     sortBy: SortBy[]

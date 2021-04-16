@@ -27,6 +27,7 @@ const dispatcherMethods = [
   'setUpWithMigrations',
   'find',
   'query',
+  'cachedQuery',
   'count',
   'batch',
   'batchJSON',
@@ -62,7 +63,7 @@ export const makeDispatcher = (
         if (jsiDb) {
           try {
             const value =
-              methodName === 'query' || methodName === 'count'
+              methodName === 'query' || methodName === 'cachedQuery' || methodName === 'count'
                 ? jsiDb[methodName](...otherArgs, []) // FIXME: temp workaround
                 : jsiDb[methodName](...otherArgs)
 

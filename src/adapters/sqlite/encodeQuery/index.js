@@ -137,6 +137,7 @@ const encodeConditions = (
 // relation, then we need to add `distinct` on the query to ensure there are no duplicates
 const encodeMethod = (
   table: TableName<any>,
+  selections: ColumnName[],
   countMode: boolean,
   needsDistinct: boolean,
 ): string => {
@@ -146,9 +147,16 @@ const encodeMethod = (
       : `select count(*) as "count" from ${encodeName(table)}`
   }
 
+  const getSelectionQueryString = () => {
+    if (!selections.length) {
+      return `${encodeName(table)}.*`
+    }
+    return selections.map(column => `${encodeName(table)}.${encodeName(column)}`).join(', ')
+  }
+
   return needsDistinct
-    ? `select distinct ${encodeName(table)}.* from ${encodeName(table)}`
-    : `select ${encodeName(table)}.* from ${encodeName(table)}`
+    ? `select distinct ${getSelectionQueryString()} from ${encodeName(table)}`
+    : `select ${getSelectionQueryString()} from ${encodeName(table)}`
 }
 
 const encodeAssociation = (description: QueryDescription) => ({
@@ -207,6 +215,8 @@ const encodeQuery = (query: SerializedQuery, countMode: boolean = false): string
 
   const hasToManyJoins = associations.some(({ info }) => info.type === 'has_many')
 
+  const selections = Q.getSelectedColumns(description)
+
   description.take &&
     invariant(
       !countMode,
@@ -215,7 +225,7 @@ const encodeQuery = (query: SerializedQuery, countMode: boolean = false): string
   invariant(!description.lokiTransform, 'unsafeLokiTransform not supported with SQLite')
 
   const sql =
-    encodeMethod(table, countMode, hasToManyJoins) +
+    encodeMethod(table, selections, countMode, hasToManyJoins) +
     encodeJoin(description, associations) +
     encodeConditions(table, description, associations) +
     encodeOrderBy(table, description.sortBy) +

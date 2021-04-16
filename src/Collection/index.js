@@ -11,7 +11,7 @@ import type Database from '../Database'
 import type Model, { RecordId } from '../Model'
 import type { Clause } from '../QueryDescription'
 import { type TableName, type TableSchema } from '../Schema'
-import { type DirtyRaw } from '../RawRecord'
+import { type DirtyRaw, type RecordState } from '../RawRecord'
 
 import RecordCache from './RecordCache'
 import { CollectionChangeTypes } from './common'
@@ -147,8 +147,15 @@ export default class Collection<Record: Model> {
 
   // See: Query.fetch
   _fetchQuery(query: Query<Record>, callback: ResultCallback<Record[]>): void {
-    this.database.adapter.underlyingAdapter.query(query.serialize(), result =>
+    this.database.adapter.underlyingAdapter.cachedQuery(query.serialize(), result =>
       callback(mapValue(rawRecords => this._cache.recordsFromQueryResult(rawRecords), result)),
+    )
+  }
+
+  _fetchQuerySelect(query: Query<Record>, callback: ResultCallback<RecordState[]>): void {
+    const columns = query.getSelectedColumns()
+    this.database.adapter.underlyingAdapter.query(query.serialize(), result =>
+      callback(mapValue(rawRecords => this._cache.recordStatesFromQueryResult(rawRecords, columns), result)),
     )
   }
 

@@ -86,7 +86,7 @@ export default () => [
     'can query and count on empty db',
     async adapter => {
       const query = taskQuery()
-      expect(await adapter.query(query)).toEqual([])
+      expect(await adapter.cachedQuery(query)).toEqual([])
       expect(await adapter.count(query)).toBe(0)
     },
   ],
@@ -172,13 +172,13 @@ export default () => [
       await adapter.batch([['create', 'tasks', s1]])
 
       // returns empty array
-      expectSortedEqual(await adapter.query(projectQuery()), [])
+      expectSortedEqual(await adapter.cachedQuery(projectQuery()), [])
 
       const p1 = mockProjectRaw({ id: 'id1', num1: 1, text1: 'foo' })
       await adapter.batch([['create', 'projects', p1]])
 
       // returns cached ID after create
-      expectSortedEqual(await adapter.query(projectQuery()), ['id1'])
+      expectSortedEqual(await adapter.cachedQuery(projectQuery()), ['id1'])
 
       // add more project, restart app
       const p2 = mockProjectRaw({ id: 'id2', num1: 1, text1: 'foo' })
@@ -189,12 +189,12 @@ export default () => [
       await adapter.batch([['create', 'tasks', s2]])
 
       // returns cached IDs after create
-      expectSortedEqual(await adapter.query(taskQuery()), [s1, 'id2'])
+      expectSortedEqual(await adapter.cachedQuery(taskQuery()), [s1, 'id2'])
 
       // returns raw if not cached for a different table
-      expectSortedEqual(await adapter.query(projectQuery()), [p1, p2])
+      expectSortedEqual(await adapter.cachedQuery(projectQuery()), [p1, p2])
       // returns cached IDs after previous query
-      expectSortedEqual(await adapter.query(taskQuery()), ['id1', 'id2'])
+      expectSortedEqual(await adapter.cachedQuery(taskQuery()), ['id1', 'id2'])
     },
   ],
   [
@@ -225,18 +225,18 @@ export default () => [
       ])
 
       // all records
-      expectSortedEqual(await adapter.query(taskQuery()), ['t1', 't2', 't3'])
+      expectSortedEqual(await adapter.cachedQuery(taskQuery()), ['t1', 't2', 't3'])
       expect(await adapter.count(taskQuery())).toBe(3)
 
       // some records
-      expectSortedEqual(await adapter.query(taskQuery(Q.where('bool1', false))), ['t1', 't3'])
-      expectSortedEqual(await adapter.query(taskQuery(Q.where('order', 2))), ['t2'])
-      expectSortedEqual(await adapter.query(taskQuery(Q.where('order', 3))), ['t3'])
+      expectSortedEqual(await adapter.cachedQuery(taskQuery(Q.where('bool1', false))), ['t1', 't3'])
+      expectSortedEqual(await adapter.cachedQuery(taskQuery(Q.where('order', 2))), ['t2'])
+      expectSortedEqual(await adapter.cachedQuery(taskQuery(Q.where('order', 3))), ['t3'])
 
       expect(await adapter.count(taskQuery(Q.where('bool1', false)))).toBe(2)
 
       // no records
-      expectSortedEqual(await adapter.query(taskQuery(Q.where('text1', 'nope'))), [])
+      expectSortedEqual(await adapter.cachedQuery(taskQuery(Q.where('text1', 'nope'))), [])
       expect(await adapter.count(taskQuery(Q.where('text1', 'nope')))).toBe(0)
       expect(await adapter.count(taskQuery(Q.where('order', 4)))).toBe(0)
     },
@@ -290,7 +290,7 @@ export default () => [
     'compacts query results',
     async _adapter => {
       let adapter = _adapter
-      const queryAll = () => adapter.query(taskQuery())
+      const queryAll = () => adapter.cachedQuery(taskQuery())
 
       // add records, restart app
       const s1 = mockTaskRaw({ id: 's1', order: 1 })
@@ -337,7 +337,7 @@ export default () => [
       await adapter.batch([['create', 'tasks', t1], ['create', 'tasks', t2]])
       adapter = await adapter.testClone()
 
-      expectSortedEqual(await adapter.query(taskQuery()), [
+      expectSortedEqual(await adapter.cachedQuery(taskQuery()), [
         sanitizedRaw(t1, testSchema.tables.tasks),
         sanitizedRaw(t2, testSchema.tables.tasks),
       ])
@@ -361,7 +361,7 @@ export default () => [
 
       // make sure same is true for query
       adapter = await adapter.testClone()
-      const [queriedRaw] = await adapter.query(taskQuery())
+      const [queriedRaw] = await adapter.cachedQuery(taskQuery())
       expect(queriedRaw).toEqual(originalRaw)
       expect(queriedRaw).not.toBe(raw)
     },
@@ -391,16 +391,16 @@ export default () => [
     async adapter => {
       const m1 = mockTaskRaw({ id: 't1', text1: 'bar1' })
       await adapter.batch([['create', 'tasks', m1]])
-      expect(await adapter.query(taskQuery())).toEqual(['t1'])
+      expect(await adapter.cachedQuery(taskQuery())).toEqual(['t1'])
 
       await adapter.batch([['markAsDeleted', 'tasks', m1.id]])
-      expect(await adapter.query(taskQuery())).toEqual([])
+      expect(await adapter.cachedQuery(taskQuery())).toEqual([])
 
       // Check that the record is removed from cache
       // HACK: Set _status to reveal the record in query (if record was cached, there would only be ID)
       m1._status = 'synced'
       await adapter.batch([['update', 'tasks', m1]])
-      expectSortedEqual(await adapter.query(taskQuery()), [m1])
+      expectSortedEqual(await adapter.cachedQuery(taskQuery()), [m1])
     },
   ],
   [
@@ -438,7 +438,7 @@ export default () => [
 
       await adapter.destroyDeletedRecords('tasks', ['t1', 't2'])
       expectSortedEqual(await adapter.getDeletedRecords('tasks'), ['t3'])
-      expectSortedEqual(await adapter.query(taskQuery()), ['t4'])
+      expectSortedEqual(await adapter.cachedQuery(taskQuery()), ['t4'])
       expect(await adapter.find('tasks', 't1')).toBeNull()
       expect(await adapter.find('tasks', 't2')).toBeNull()
     },
@@ -462,10 +462,10 @@ export default () => [
 
       await adapter.destroyDeletedRecords('tasks', ['\') or 1=1 --'])
       expectSortedEqual(await adapter.getDeletedRecords('tasks'), ['t1', 't2', 't3'])
-      expectSortedEqual(await adapter.query(taskQuery()), [])
+      expectSortedEqual(await adapter.cachedQuery(taskQuery()), [])
 
       await adapter.destroyDeletedRecords('tasks', ['\'); insert into tasks (id) values (\'t4\') --'])
-      expectSortedEqual(await adapter.query(taskQuery()), [])
+      expectSortedEqual(await adapter.cachedQuery(taskQuery()), [])
     },
   ],
   [
@@ -499,7 +499,7 @@ export default () => [
       expect(fetched2.bool2).toBe(true)
 
       expect(await adapter.find('tasks', 't3')).toBeNull()
-      expect(await adapter.query(taskQuery())).toEqual(['t1', 't2'])
+      expect(await adapter.cachedQuery(taskQuery())).toEqual(['t1', 't2'])
 
       expect(await adapter.getDeletedRecords('tasks')).toEqual(['t4'])
     },
@@ -509,7 +509,7 @@ export default () => [
     async (adapter, AdapterClass) => {
       // sanity check
       await adapter.batch([['create', 'tasks', mockTaskRaw({ id: 't1' })]])
-      expect(await adapter.query(taskQuery())).toEqual(['t1'])
+      expect(await adapter.cachedQuery(taskQuery())).toEqual(['t1'])
 
       await expectToRejectWithMessage(
         adapter.batch([
@@ -522,14 +522,14 @@ export default () => [
       )
       if (AdapterClass.name !== 'LokiJSAdapter') {
         // Regrettably, Loki is not transactional
-        expect(await adapter.query(taskQuery())).toEqual(['t1'])
+        expect(await adapter.cachedQuery(taskQuery())).toEqual(['t1'])
       }
     },
   ],
   [
     'can run sync-like flow',
     async adapter => {
-      const queryAll = () => adapter.query(taskQuery())
+      const queryAll = () => adapter.cachedQuery(taskQuery())
 
       const m1 = mockTaskRaw({ id: 't1', text1: 'bar1', order: 1 })
       const m2 = mockTaskRaw({ id: 't2', text1: 'bar2', order: 2 })
@@ -595,7 +595,7 @@ export default () => [
       const find1Promise = queryable(adapter.find('tasks', 't1'))
       const find2Promise = queryable(adapter.find('tasks', 't2'))
       adapter.batch([['create', 'tasks', mockTaskRaw({ id: 't2', text1: 'bar', order: 2 })]])
-      const queryPromise = queryable(adapter.query(taskQuery()))
+      const queryPromise = queryable(adapter.cachedQuery(taskQuery()))
       const find2Promise2 = queryable(adapter.find('tasks', 't2'))
 
       await find2Promise2
@@ -615,7 +615,7 @@ export default () => [
       )
       adapter.unsafeResetDatabase()
       adapter.batch([['create', 'tasks', mockTaskRaw({ id: 't1', text1: 'bar', order: 2 })]])
-      const queryPromise2 = adapter.query(taskQuery())
+      const queryPromise2 = adapter.cachedQuery(taskQuery())
 
       expect(await queryPromise2).toEqual(['t1'])
       expect(batchPromise.isSettled()).toBe(true)
@@ -625,7 +625,7 @@ export default () => [
     'fails on bad queries, creates, updates, deletes',
     async adapter => {
       const badQuery = new Query({ modelClass: BadModel }, []).serialize()
-      await expect(adapter.query(badQuery)).rejects.toBeInstanceOf(Error)
+      await expect(adapter.cachedQuery(badQuery)).rejects.toBeInstanceOf(Error)
       await expect(adapter.count(badQuery)).rejects.toBeInstanceOf(Error)
 
       const record1 = new BadModel({ table: 'nonexisting' }, { id: 't1' })
@@ -720,7 +720,7 @@ export default () => [
           await adapter.batch([['markAsDeleted', tableName, 'i1']])
           await adapter.batch([['create', tableName, { id: 'i2' }]])
           await adapter.find(tableName, 'i2')
-          await adapter.query(modelQuery({ table: tableName }))
+          await adapter.cachedQuery(modelQuery({ table: tableName }))
           await adapter.count(modelQuery({ table: tableName }))
           await adapter.getDeletedRecords(tableName)
           await adapter.destroyDeletedRecords(tableName, ['i1'])
@@ -738,7 +738,7 @@ export default () => [
       const table = 'does-not-exist'
       const msg = /table name '.*' does not exist/
       await expectToRejectWithMessage(adapter.find(table, 'i'), msg)
-      await expectToRejectWithMessage(adapter.query(modelQuery({ table })), msg)
+      await expectToRejectWithMessage(adapter.cachedQuery(modelQuery({ table })), msg)
       if (AdapterClass.name === 'SQLiteAdapter') {
         await expectToRejectWithMessage(adapter.unsafeSqlQuery(table, 'xxx'), msg)
       }
@@ -1146,7 +1146,7 @@ export default () => [
 
       // launch app again
       adapter = await adapter.testClone()
-      const allRecords = await adapter.query(taskQuery())
+      const allRecords = await adapter.cachedQuery(taskQuery())
 
       indexedNaughtyStrings.forEach(([id, string]) => {
         const record = allRecords.find(model => model.id === id)

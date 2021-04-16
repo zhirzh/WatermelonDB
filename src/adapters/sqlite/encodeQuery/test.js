@@ -270,4 +270,12 @@ describe('SQLite encodeQuery', () => {
     expect(() => encoded([Q.unsafeLokiExpr({ hi: true })])).toThrow('Unknown clause')
     expect(() => encoded([Q.unsafeLokiTransform(() => {})])).toThrow('not supported')
   })
+  it.only('encodes simple select queries', () => {
+    const query = new Query(mockCollection, [
+      Q.experimentalSelect(['col1', 'col2']),
+    ])
+    expect(encodeQuery(query)).toBe(
+      `select "tasks"."id", "tasks"."col1", "tasks"."col2" from "tasks" where "tasks"."_status" is not 'deleted'`,
+    )
+  })
 })

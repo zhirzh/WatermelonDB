@@ -21,6 +21,7 @@ const {
   SETUP,
   FIND,
   QUERY,
+  CACHED_QUERY,
   COUNT,
   BATCH,
   UNSAFE_RESET_DATABASE,
@@ -172,6 +173,12 @@ export default class LokiJSAdapter implements DatabaseAdapter {
     validateTable(query.table, this.schema)
     // SerializedQueries are immutable, so we need no copy
     this.workerBridge.send(QUERY, [query], callback, 'immutable', 'shallowCloneDeepObjects')
+  }
+
+  cachedQuery(query: SerializedQuery, callback: ResultCallback<CachedQueryResult>): void {
+    validateTable(query.table, this.schema)
+    // SerializedQueries are immutable, so we need no copy
+    this.workerBridge.send(CACHED_QUERY, [query], callback, 'immutable', 'shallowCloneDeepObjects')
   }
 
   count(query: SerializedQuery, callback: ResultCallback<number>): void {

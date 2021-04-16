@@ -11,6 +11,8 @@ declare module '@nozbe/watermelondb/RawRecord' {
     last_modified: number | null
   }
 
+  export type RecordState<T>  = T & Record<"id", string>
+
   export function sanitizedRaw(dirtyRaw: DirtyRaw, tableSchema: TableSchema): RawRecord
 
   export function setRawSanitized(

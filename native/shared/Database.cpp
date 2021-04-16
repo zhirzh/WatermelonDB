@@ -257,6 +257,14 @@ jsi::Value Database::find(jsi::String &tableName, jsi::String &id) {
 }
 
 jsi::Value Database::query(jsi::String &tableName, jsi::String &sql, jsi::Array &arguments) {
+    return query(tableName, sql, arguments, false);
+}
+
+jsi::Value Database::cachedQuery(jsi::String &tableName, jsi::String &sql, jsi::Array &arguments) {
+    return query(tableName, sql, arguments, true);
+}
+
+jsi::Value Database::query(jsi::String &tableName, jsi::String &sql, jsi::Array &arguments, bool willCache) {
     auto &rt = getRt();
     auto statement = executeQuery(sql.utf8(rt), arguments);
 
@@ -284,7 +292,9 @@ jsi::Value Database::query(jsi::String &tableName, jsi::String &sql, jsi::Array 
             jsi::String jsiId = jsi::String::createFromAscii(rt, id);
             records.push_back(std::move(jsiId));
         } else {
-            markAsCached(cacheKey(tableName.utf8(rt), std::string(id)));
+            if (willCache) {
+                markAsCached(cacheKey(tableName.utf8(rt), std::string(id)));
+            }
             jsi::Object record = resultDictionary(statement.stmt);
             records.push_back(std::move(record));
         }

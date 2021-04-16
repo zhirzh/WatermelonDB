@@ -12,11 +12,13 @@ import lazy from '../decorators/lazy' // import from decorarators break the app 
 import subscribeToCount from '../observation/subscribeToCount'
 import subscribeToQuery from '../observation/subscribeToQuery'
 import subscribeToQueryWithColumns from '../observation/subscribeToQueryWithColumns'
+import subscribeToQueryWithSelect from '../observation/subscribeToQueryWithSelect'
 import * as Q from '../QueryDescription'
 import type { Clause, QueryDescription } from '../QueryDescription'
 import type Model, { AssociationInfo } from '../Model'
 import type Collection from '../Collection'
 import type { TableName, ColumnName } from '../Schema'
+import type { RecordState } from '../RawRecord'
 
 import { getAssociations } from './helpers'
 
@@ -75,6 +77,7 @@ export default class Query<Record: Model> {
   extend(...clauses: Clause[]): Query<Record> {
     const { collection } = this
     const {
+      select,
       where,
       sortBy,
       take,
@@ -87,6 +90,7 @@ export default class Query<Record: Model> {
     return new Query(collection, [
       Q.experimentalJoinTables(joinTables),
       ...nestedJoinTables.map(({ from, to }) => Q.experimentalNestedJoin(from, to)),
+      ...select,
       ...where,
       ...sortBy,
       ...(take ? [Q.experimentalTake(take)] : []),
@@ -113,6 +117,11 @@ export default class Query<Record: Model> {
     return this.fetch().then(onFulfill, onReject)
   }
 
+  experimentalFetchColumns(columnNames: ColumnName[]): Promise<any[]> {
+    const queryWithSelect = this.extend(Q.experimentalSelect(columnNames))
+    return toPromise(callback => this.collection._fetchQuerySelect(queryWithSelect, callback))
+  }
+
   // Emits an array of matching records, then emits a new array every time it changes
   observe(): Observable<Record[]> {
     return Observable.create(observer =>
@@ -131,6 +140,19 @@ export default class Query<Record: Model> {
       }),
     )
   }
+
+  // Same as `observeWithColumns(columnNames)` but emits raw records with only the
+  // selected `columnNames` (and `id` property added implicitly).
+  // Note: This is an experimental feature and this API might change in future versions.
+  experimentalObserveColumns(columnNames: ColumnName[]): Observable<RecordState[]> {
+    const queryWithSelect = this.extend(Q.experimentalSelect(columnNames))
+    return Observable.create(observer =>
+      subscribeToQueryWithSelect(queryWithSelect, records => {
+        observer.next(records)
+      }),
+    )
+  }
+
 
   // Returns the number of matching records
   fetchCount(): Promise<number> {
@@ -176,6 +198,10 @@ export default class Query<Record: Model> {
 
   experimentalSubscribeToCount(subscriber: number => void): Unsubscribe {
     return this._cachedCountSubscribable.subscribe(subscriber)
+  }
+
+  getSelectedColumns(): ColumnName[] {
+    return Q.getSelectedColumns(this.description)
   }
 
   // Marks as deleted all records matching the query

@@ -213,7 +213,21 @@ class DatabaseBridge {
     query: string,
     resolve: any => void,
     reject: string => void,
-  ) => this.withDriver(tag, resolve, reject, 'query', driver => driver.cachedQuery(table, query))
+  ) => this.withDriver(tag, resolve, reject, 'query', driver => driver.query(table, query))
+
+  cachedQuery: ((
+  tag: number,
+  table: string,
+  query: string,
+  resolve: (any) => void,
+  reject: (string) => void
+) => void) = (
+    tag: number,
+    table: string,
+    query: string,
+    resolve: any => void,
+    reject: string => void,
+  ) => this.withDriver(tag, resolve, reject, 'cachedQuery', driver => driver.cachedQuery(table, query))
 
   count: ((
   tag: number,
@@ -324,6 +338,12 @@ class DatabaseBridge {
 
   querySynchronous: ((tag: number, table: string, query: string) => any) = (tag: number, table: string, query: string): any =>
     this.withDriverSynchronous(tag, 'querySynchronous', driver => {
+      const results = driver.query(table, query)
+      return results
+    })
+
+  cachedQuerySynchronous: ((tag: number, table: string, query: string) => any) = (tag: number, table: string, query: string): any =>
+    this.withDriverSynchronous(tag, 'cachedQuerySynchronous', driver => {
       const results = driver.cachedQuery(table, query)
       return results
     })
